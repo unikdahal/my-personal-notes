@@ -10,3 +10,4 @@
 * **[05-Infrastructure](./05-Infrastructure)**: Cloud, DevOps, and Containers.
 * **[06-Tools-and-Productivity](./06-Tools-and-Productivity)**: Workflow optimizations.
 * **[99-Archives](./99-Archives)**: Deprecated technology.
+# my-personal-notes
