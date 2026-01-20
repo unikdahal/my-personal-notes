@@ -1,148 +1,209 @@
 ---
+
 title: "Java Reflection: Internals, Performance & Security"
 day: 10
 tags:
-  - java
-  - reflection
-  - jvm-internals
-  - spring
-  - sde2
+
+* java
+* reflection
+* jvm-internals
+* spring
+
 ---
 
-# 10. Java Reflection (Deep Internals)
+# 10. Java Reflection — Internal Mechanics
 
 ## 10.1 First Principles: Why Reflection Exists
-- Normal Java uses static binding
-- Classes, methods, fields usually known at compile time
-- Framework problem:
-  - Types unknown until runtime
-  - Behavior driven by configuration & annotations
-- Reflection enables:
-  - Runtime inspection
-  - Runtime invocation
-  - Dynamic object construction
+
+* Conventional Java relies on static binding
+* Types, methods, and fields are typically known at compile time
+* Certain systems require:
+
+  * Types discovered only at runtime
+  * Behavior driven by metadata, configuration, or annotations
+* Reflection provides:
+
+  * Runtime inspection
+  * Runtime invocation
+  * Dynamic object construction
 
 ## 10.2 Definition of Reflection
-- Ability of a program to inspect and manipulate its own structure at runtime
-- Operates on:
-  - Classes
-  - Fields
-  - Methods
-  - Constructors
-  - Annotations
-- Turns program structure into runtime metadata
+
+* Capability of a program to inspect and manipulate its own structure at runtime
+* Operates on:
+
+  * Classes
+  * Fields
+  * Methods
+  * Constructors
+  * Annotations
+* Converts program structure into runtime metadata
 
 ## 10.3 Reflection and Class Loading
-- Reflection operates on `Class<?>` objects
-- `Class` object:
-  - JVM runtime representation of a loaded class
-  - Created during class loading
-- One `Class` object per (ClassLoader + class name)
-- Same class name loaded by different classloaders → different `Class` objects
+
+* Reflection operates on `Class<?>` objects
+* A `Class` object represents:
+
+  * The JVM’s runtime metadata for a loaded type
+* Creation timing:
+
+  * During class loading
+* Identity rule:
+
+  * One `Class` instance per (ClassLoader, fully-qualified class name)
+* Implication:
+
+  * Same class name loaded by different class loaders yields distinct types
 
 ## 10.4 Reflection Object Model
-- From `Class<?>`, JVM exposes:
-  - `Field`
-  - `Method`
-  - `Constructor`
-  - `Annotation`
-- These are descriptors, not actual code
-- Class structure is immutable after loading
 
-## 10.5 Access Control & Encapsulation
-- Normal Java enforces access via compiler + JVM
-- Reflection can bypass using:
-  - `setAccessible(true)`
-- Consequences:
-  - Breaks encapsulation
-  - Violates invariants
-  - Introduces non-local bugs
+* From `Class<?>`, the JVM exposes descriptors:
+
+  * `Field`
+  * `Method`
+  * `Constructor`
+  * `Annotation`
+* These objects:
+
+  * Describe structure
+  * Do not contain executable bytecode
+* Class structure becomes immutable after loading
+
+## 10.5 Access Control and Encapsulation
+
+* Standard Java access rules are enforced by:
+
+  * Compiler checks
+  * JVM verification
+* Reflection can bypass access checks via:
+
+  * `setAccessible(true)`
+* Consequences:
+
+  * Encapsulation violations
+  * Broken invariants
+  * Non-local, hard-to-debug failures
 
 ## 10.6 Performance Costs of Reflection
-- Dynamic dispatch prevents:
-  - JIT inlining
-  - Devirtualization
-  - Escape analysis
-- Additional overhead:
-  - Boxing / unboxing
-  - Varargs allocation
-  - Access checks
-- Reflection is always slower than direct calls
 
-## 10.7 JIT Interaction
-- JIT requires predictable call targets
-- Reflection resolves targets at runtime
-- JVM cannot optimize aggressively
-- Result:
-  - Higher latency
-  - Lower throughput
+* Dynamic resolution prevents key optimizations:
+
+  * Method inlining
+  * Devirtualization
+  * Escape analysis
+* Additional overhead sources:
+
+  * Boxing and unboxing
+  * Varargs array allocation
+  * Repeated access checks
+* Reflective invocation is consistently slower than direct calls
+
+## 10.7 Interaction with the JIT Compiler
+
+* JIT optimization relies on:
+
+  * Stable call targets
+  * Predictable control flow
+* Reflection resolves targets at runtime
+* Resulting effects:
+
+  * Reduced optimization opportunities
+  * Increased latency
+  * Lower throughput under load
 
 ## 10.8 Reflection Usage Pattern in Frameworks
-- Reflect once, execute many times
-- Typical flow:
-  - Startup scanning
-  - Metadata caching
-  - Runtime execution via cached handles
-- Reflection avoided in hot paths
 
-## 10.9 Security Risks of Reflection
-- Can access private data
-- Can mutate internal state
-- Common source of vulnerabilities:
-  - Deserialization exploits
-  - Sandbox escapes
-- `setAccessible(true)` is a major risk point
+* Common strategy:
 
-## 10.10 Java 9+ Module System (JPMS)
-- Introduced strong encapsulation
-- Code organized into modules
-- Modules explicitly control:
-  - Exported packages
-  - Opened packages (for reflection)
+  * Reflect once, execute many times
+* Typical lifecycle:
 
-## 10.11 Reflection Restrictions in Java 9+
-- Reflection across modules blocked by default
-- `exports`:
-  - Compile-time + runtime access
-- `opens`:
-  - Runtime reflective access only
-- Illegal reflective access:
-  - Warnings → errors in newer Java versions
+  * Startup-time classpath scanning
+  * Metadata extraction
+  * Aggressive caching of reflective artifacts
+* Reflection is deliberately excluded from hot paths
 
-## 10.12 Escape Hatches
-- JVM flags:
-  - `--add-opens`
-  - `--illegal-access`
-- Explicit opt-in to break encapsulation
-- Responsibility shifts to developer
+## 10.9 Security Implications
 
-## 10.13 Reflection vs Alternatives
-- Reflection:
-  - Powerful
-  - Slow
-  - Dangerous
-- Alternatives:
-  - Interfaces & polymorphism
-  - Code generation
-  - MethodHandles / VarHandles
+* Reflection enables access to:
 
-## 10.14 When Reflection Is Justified
-- Infrastructure / framework code
-- Startup-time operations
-- Unknown types at compile time
-- Controlled and audited usage
+  * Private fields
+  * Internal state
+* Common attack surfaces:
+
+  * Deserialization chains
+  * Sandbox escapes
+* `setAccessible(true)` is a critical risk boundary
+
+## 10.10 Module System (JPMS)
+
+* Introduced strong encapsulation boundaries
+* Code organized into explicit modules
+* Modules declare:
+
+  * Exported packages
+  * Opened packages for reflective access
+
+## 10.11 Reflection Restrictions in Modular Java
+
+* Reflective access across modules is denied by default
+* `exports`:
+
+  * Enables compile-time and runtime access
+* `opens`:
+
+  * Enables runtime reflective access only
+* Illegal reflective access:
+
+  * Initially warned
+  * Progressively restricted in later releases
+
+## 10.12 Explicit Escape Hatches
+
+* JVM command-line options:
+
+  * `--add-opens`
+  * `--illegal-access`
+* Purpose:
+
+  * Explicit opt-in to weaken encapsulation
+* Responsibility:
+
+  * Fully transferred to the system owner
+
+## 10.13 Reflection Versus Alternatives
+
+* Reflection:
+
+  * Maximum flexibility
+  * Reduced performance
+  * Weakened safety
+* Alternatives:
+
+  * Interfaces and polymorphism
+  * Code generation
+  * `MethodHandle` / `VarHandle`
+
+## 10.14 When Reflection Is Appropriate
+
+* Infrastructure and framework-level code
+* Initialization and startup phases
+* Scenarios with genuinely unknown types
+* Strictly controlled and audited usage
 
 ## 10.15 When Reflection Should Be Avoided
-- Business logic
-- Hot execution paths
-- Security-sensitive code
-- Frequent method invocation
 
-## 10.16 Final Mental Model
-- Reflection trades safety and performance for runtime flexibility
-- Essential for frameworks, risky for applications
-- Must be minimized, cached, and explicitly controlled
+* Domain logic
+* Hot execution paths
+* Security-sensitive operations
+* Repeated fine-grained invocation
 
-## 10.17 SDE-2 One-Paragraph Summary
-- Java reflection enables runtime introspection and dynamic behavior required by frameworks such as Spring, but it bypasses compile-time safety, blocks JVM optimizations, and breaks encapsulation. Java 9 strengthened controls via the module system, restricting reflective access unless explicitly permitted. Reflection should be used sparingly, primarily during startup and infrastructure-level code, and avoided in hot paths and business logic.
+## 10.16 Stable Mental Model
 
+* Reflection trades safety and performance for runtime flexibility
+* Essential for certain abstractions
+* Dangerous when unconstrained
+
+## 10.17 One-Paragraph Summary
+
+* Java reflection enables runtime introspection and dynamic behavior required by flexible systems, but it bypasses compile-time guarantees, inhibits JVM optimizations, and weakens encapsulation. Stronger boundaries introduced by the module system restrict reflective access unless explicitly declared. Reflection is most appropriate for infrastructure concerns, typically during controlled initialization, and should be avoided in performance-critical or security-sensitive code paths.
